@@ -13,3 +13,18 @@ dependencies {
     implementation "io.github.berstanio:gdx-svmhelper-annotations:$graalHelperVersion"
   }
 }
+allprojects {
+
+  apply plugin: "idea"   // nếu bạn dùng IntelliJ IDEA
+
+  version = '1.0'
+  ext {
+    appName = 'MyGdxGame'
+    gdxVersion = '1.12.0'
+  }
+
+  repositories {
+    mavenCentral()
+    maven { url 'https://libgdx.badlogicgames.com/nightlies/maven/' }
+  }
+}
