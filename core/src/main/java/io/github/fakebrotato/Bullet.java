@@ -10,15 +10,12 @@ public class Bullet {
     private float width, height;
 
     public Bullet(float startX, float startY, float scaleFactor, float speed) {
-        // Tải texture từ file bullet.png
-        this.texture = new Texture("bullet.png");
-        this.x = startX;
+        this.texture = new Texture("bullet.png"); // Không xử lý lỗi, nếu file không tồn tại sẽ crash
+        this.width = texture.getWidth() * scaleFactor; // Tính trước width
+        this.height = texture.getHeight() * scaleFactor; // Tính trước height
+        this.x = startX; // Gán x sau khi width đã được tính
         this.y = startY;
         this.speed = speed;
-
-        // Kích thước đạn
-        this.width = texture.getWidth() * scaleFactor;
-        this.height = texture.getHeight() * scaleFactor;
     }
 
     public void draw(SpriteBatch batch) {
@@ -26,18 +23,17 @@ public class Bullet {
     }
 
     public void update(float deltaTime) {
-        y += speed * deltaTime; // Đạn di chuyển lên trên
+        y += speed * deltaTime;
     }
 
     public boolean isOffScreen(float screenHeight) {
-        return y > screenHeight; // Kiểm tra nếu đạn ra khỏi màn hình
+        return y > screenHeight;
     }
 
     public void dispose() {
         texture.dispose();
     }
 
-    // Getter cho tọa độ và kích thước
     public float getX() {
         return x;
     }
@@ -52,5 +48,13 @@ public class Bullet {
 
     public float getHeight() {
         return height;
+    }
+
+    // Phương thức tĩnh để lấy chiều rộng của đạn trước khi tạo
+    public static float getBulletWidth(float scaleFactor) {
+        Texture tempTexture = new Texture("bullet.png");
+        float width = tempTexture.getWidth() * scaleFactor;
+        tempTexture.dispose(); // Giải phóng texture tạm thời
+        return width;
     }
 }
