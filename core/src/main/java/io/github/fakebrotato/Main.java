@@ -28,25 +28,30 @@ public class Main extends ApplicationAdapter {
     private ArrayList<Enemy> enemies;
     private ArrayList<Bullet> playerBullets;
     private ArrayList<Bullet> bossBullets;
+    private ArrayList<Powerup> powerups;
+    private ArrayList<Bomber> bombers;
     private Boss boss;
 
     private Texture backgroundTexture;
     private Music backgroundMusic;
+    private Music bossMusic;
     private float spawnTimer;
     private float timeElapsed;
     private Random random;
 
     private float baseEnemySpeed = 150;
     private float speedIncrementRate = 10;
+    private float maxEnemySpeed = baseEnemySpeed * 3;
 
     private int enemiesDestroyed = 0;
     private final int enemiesToSpawnBoss = 10;
-    private float bossInitialHealth = 1000;
+    private float bossInitialHealth = 5000;
     private boolean bossActive = false;
 
     private int playerHealth = 5;
     private final int maxPlayerHealth = 5;
     private int score = 0;
+    private int bulletCount = 1;
 
     private GameState gameState = GameState.PLAYING;
     private ArrayList<Integer> highScores = new ArrayList<>();
@@ -66,12 +71,18 @@ public class Main extends ApplicationAdapter {
             enemies = new ArrayList<>();
             playerBullets = new ArrayList<>();
             bossBullets = new ArrayList<>();
+            powerups = new ArrayList<>();
+            bombers = new ArrayList<>();
             backgroundTexture = new Texture("background.jpg");
 
             backgroundMusic = Gdx.audio.newMusic(Gdx.files.internal("background_music.mp3"));
             backgroundMusic.setLooping(true);
             backgroundMusic.setVolume(0.5f);
             backgroundMusic.play();
+
+            bossMusic = Gdx.audio.newMusic(Gdx.files.internal("bosstheme.mp3"));
+            bossMusic.setLooping(true);
+            bossMusic.setVolume(0.5f);
 
             spawnTimer = 0;
             timeElapsed = 0;
@@ -118,6 +129,8 @@ public class Main extends ApplicationAdapter {
         enemies.clear();
         playerBullets.clear();
         bossBullets.clear();
+        powerups.clear();
+        bombers.clear();
         if (boss != null) {
             boss.dispose();
             boss = null;
@@ -125,6 +138,7 @@ public class Main extends ApplicationAdapter {
         bossActive = false;
         enemiesDestroyed = 0;
         playerHealth = 5;
+        bulletCount = 1;
         score = 0;
         spawnTimer = 0;
         timeElapsed = 0;
@@ -133,6 +147,7 @@ public class Main extends ApplicationAdapter {
             gameOverScreen.dispose();
             gameOverScreen = null;
         }
+        backgroundMusic.play();
     }
 
     @Override
@@ -149,21 +164,29 @@ public class Main extends ApplicationAdapter {
             if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.SPACE)) {
                 float bulletWidth = Bullet.getBulletWidth(0.5f);
                 float bulletStartX = guardian.getX() + (guardian.getWidth() / 2) - (bulletWidth / 2);
-                playerBullets.add(new Bullet(
-                    bulletStartX,
-                    guardian.getY() + guardian.getHeight(),
-                    0.5f,
-                    500,
-                    0
-                ));
+                for (int i = 0; i < bulletCount; i++) {
+                    float offset = (i - (bulletCount - 1) / 2f) * bulletWidth;
+                    playerBullets.add(new Bullet(
+                        bulletStartX + offset,
+                        guardian.getY() + guardian.getHeight(),
+                        0.5f,
+                        500,
+                        0
+                    ));
+                }
             }
 
             if (!bossActive) {
                 spawnTimer += delta;
                 if (spawnTimer >= 1.5f) {
                     float enemyX = random.nextFloat() * (Gdx.graphics.getWidth() - 50);
-                    float enemySpeed = baseEnemySpeed + timeElapsed * speedIncrementRate;
+                    float enemySpeed = Math.min(baseEnemySpeed + timeElapsed * speedIncrementRate, maxEnemySpeed);
                     enemies.add(new Enemy("enemy.png", enemyX, Gdx.graphics.getHeight(), 0.5f, enemySpeed));
+                    if (random.nextFloat() < 0.1f) {
+                        float bomberY = random.nextFloat() * (Gdx.graphics.getHeight() - 100);
+                        boolean fromLeft = random.nextBoolean();
+                        bombers.add(new Bomber(fromLeft ? 0 : Gdx.graphics.getWidth(), bomberY, fromLeft));
+                    }
                     spawnTimer = 0;
                 }
             } else if (boss != null) {
@@ -173,13 +196,33 @@ public class Main extends ApplicationAdapter {
             if (!bossActive && enemiesDestroyed >= enemiesToSpawnBoss) {
                 boss = new Boss(
                     Gdx.graphics.getWidth() / 2f - 100,
-                    Gdx.graphics.getHeight() - 150,
+                    Gdx.graphics.getHeight() - 200,
                     0.5f,
                     100,
                     bossInitialHealth
                 );
                 bossActive = true;
                 enemies.clear();
+                backgroundMusic.stop();
+                bossMusic.play();
+            }
+
+            for (int i = 0; i < bombers.size(); i++) {
+                Bomber bomber = bombers.get(i);
+                bomber.update(delta, bossBullets);
+                if (bomber.isOffScreen()) {
+                    bombers.remove(i);
+                    i--;
+                }
+            }
+
+            for (int i = 0; i < powerups.size(); i++) {
+                Powerup powerup = powerups.get(i);
+                powerup.update(delta);
+                if (powerup.getY() < -powerup.getHeight()) {
+                    powerups.remove(i);
+                    i--;
+                }
             }
 
             batch.begin();
@@ -219,6 +262,14 @@ public class Main extends ApplicationAdapter {
                 }
             }
 
+            for (Powerup powerup : powerups) {
+                powerup.draw(batch);
+            }
+
+            for (Bomber bomber : bombers) {
+                bomber.draw(batch);
+            }
+
             if (bossActive && boss != null) {
                 boss.draw(batch);
             }
@@ -240,6 +291,10 @@ public class Main extends ApplicationAdapter {
                 boss.drawHealthBar(shapeRenderer);
             }
 
+            for (Bomber bomber : bombers) {
+                bomber.drawHealthBar(shapeRenderer);
+            }
+
             for (int i = 0; i < playerBullets.size(); i++) {
                 Bullet bullet = playerBullets.get(i);
                 boolean bulletRemoved = false;
@@ -257,6 +312,23 @@ public class Main extends ApplicationAdapter {
                     }
                 }
 
+                if (!bulletRemoved) {
+                    for (int j = 0; j < bombers.size(); j++) {
+                        Bomber bomber = bombers.get(j);
+                        if (bomber.isColliding(bullet.getX(), bullet.getY(), bullet.getWidth(), bullet.getHeight())) {
+                            bomber.takeDamage(1);
+                            playerBullets.remove(i);
+                            i--;
+                            bulletRemoved = true;
+                            if (bomber.isDead()) {
+                                score += 30;
+                                bombers.remove(j);
+                            }
+                            break;
+                        }
+                    }
+                }
+
                 if (!bulletRemoved && bossActive && boss != null && boss.isColliding(bullet.getX(), bullet.getY(), bullet.getWidth(), bullet.getHeight())) {
                     boss.takeDamage(100);
                     playerBullets.remove(i);
@@ -264,11 +336,18 @@ public class Main extends ApplicationAdapter {
 
                     if (boss.isDead()) {
                         score += 200;
+                        if (random.nextBoolean()) {
+                            powerups.add(new Powerup(boss.getX() + boss.getWidth() / 2, boss.getY(), Powerup.Type.AMMO));
+                        } else {
+                            powerups.add(new Powerup(boss.getX() + boss.getWidth() / 2, boss.getY(), Powerup.Type.LIFE));
+                        }
                         boss.dispose();
                         boss = null;
                         bossActive = false;
                         enemiesDestroyed = 0;
                         bossInitialHealth *= 1.1f;
+                        bossMusic.stop();
+                        backgroundMusic.play();
                     }
                 }
             }
@@ -291,11 +370,18 @@ public class Main extends ApplicationAdapter {
                 boss.takeDamage(boss.getMaxHealth() * 0.3f);
                 if (boss.isDead()) {
                     score += 200;
+                    if (random.nextBoolean()) {
+                        powerups.add(new Powerup(boss.getX() + boss.getWidth() / 2, boss.getY(), Powerup.Type.AMMO));
+                    } else {
+                        powerups.add(new Powerup(boss.getX() + boss.getWidth() / 2, boss.getY(), Powerup.Type.LIFE));
+                    }
                     boss.dispose();
                     boss = null;
                     bossActive = false;
                     enemiesDestroyed = 0;
-                    bossInitialHealth *= 1.1f;
+                    bossInitialHealth *= 1.5f;
+                    bossMusic.stop();
+                    backgroundMusic.play();
                 }
             }
 
@@ -310,6 +396,19 @@ public class Main extends ApplicationAdapter {
                         gameState = GameState.GAME_OVER;
                         gameOverScreen = new GameOverScreen(score, highScores, () -> Gdx.app.exit(), this::resetGame);
                     }
+                }
+            }
+
+            for (int i = 0; i < powerups.size(); i++) {
+                Powerup powerup = powerups.get(i);
+                if (powerup.isColliding(guardian.getX(), guardian.getY(), guardian.getWidth(), guardian.getHeight())) {
+                    if (powerup.getType() == Powerup.Type.AMMO && bulletCount < 3) {
+                        bulletCount++;
+                    } else if (powerup.getType() == Powerup.Type.LIFE && playerHealth < maxPlayerHealth) {
+                        playerHealth++;
+                    }
+                    powerups.remove(i);
+                    i--;
                 }
             }
         } else if (gameState == GameState.GAME_OVER && gameOverScreen != null) {
@@ -332,6 +431,12 @@ public class Main extends ApplicationAdapter {
         for (Bullet bullet : bossBullets) {
             bullet.dispose();
         }
+        for (Powerup powerup : powerups) {
+            powerup.dispose();
+        }
+        for (Bomber bomber : bombers) {
+            bomber.dispose();
+        }
         if (boss != null) {
             boss.dispose();
         }
@@ -340,5 +445,6 @@ public class Main extends ApplicationAdapter {
         }
         backgroundTexture.dispose();
         backgroundMusic.dispose();
+        bossMusic.dispose();
     }
 }

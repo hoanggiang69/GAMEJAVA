@@ -8,30 +8,33 @@ public class Bullet {
     private float x, y;
     private float speed;
     private float width, height;
-    private float rotation; // Góc xoay của đạn (độ)
+    private float rotation;
 
     public Bullet(float startX, float startY, float scaleFactor, float speed, float rotation) {
-        this.texture = new Texture("bullet.png");
+        this(startX, startY, scaleFactor, speed, rotation, "bullet.png");
+    }
+
+    public Bullet(float startX, float startY, float scaleFactor, float speed, float rotation, String texturePath) {
+        this.texture = new Texture(texturePath);
         this.width = texture.getWidth() * scaleFactor;
         this.height = texture.getHeight() * scaleFactor;
         this.x = startX;
         this.y = startY;
         this.speed = speed;
-        this.rotation = rotation; // Góc xoay được truyền vào constructor
+        this.rotation = rotation;
     }
 
     public void draw(SpriteBatch batch) {
-        // Sử dụng draw với rotation
         batch.draw(
             texture,
-            x, y, // Vị trí
-            width / 2, height / 2, // Điểm gốc (origin) để xoay, đặt ở giữa đạn
-            width, height, // Kích thước
-            1, 1, // Tỷ lệ scale
-            rotation, // Góc xoay
-            0, 0, // Vị trí nguồn trên texture
-            texture.getWidth(), texture.getHeight(), // Kích thước nguồn
-            false, false // Không lật texture
+            x, y,
+            width / 2, height / 2,
+            width, height,
+            1, 1,
+            rotation,
+            0, 0,
+            texture.getWidth(), texture.getHeight(),
+            false, false
         );
     }
 
