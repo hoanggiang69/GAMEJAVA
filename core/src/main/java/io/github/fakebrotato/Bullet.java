@@ -8,18 +8,31 @@ public class Bullet {
     private float x, y;
     private float speed;
     private float width, height;
+    private float rotation; // Góc xoay của đạn (độ)
 
-    public Bullet(float startX, float startY, float scaleFactor, float speed) {
-        this.texture = new Texture("bullet.png"); // Không xử lý lỗi, nếu file không tồn tại sẽ crash
-        this.width = texture.getWidth() * scaleFactor; // Tính trước width
-        this.height = texture.getHeight() * scaleFactor; // Tính trước height
-        this.x = startX; // Gán x sau khi width đã được tính
+    public Bullet(float startX, float startY, float scaleFactor, float speed, float rotation) {
+        this.texture = new Texture("bullet.png");
+        this.width = texture.getWidth() * scaleFactor;
+        this.height = texture.getHeight() * scaleFactor;
+        this.x = startX;
         this.y = startY;
         this.speed = speed;
+        this.rotation = rotation; // Góc xoay được truyền vào constructor
     }
 
     public void draw(SpriteBatch batch) {
-        batch.draw(texture, x, y, width, height);
+        // Sử dụng draw với rotation
+        batch.draw(
+            texture,
+            x, y, // Vị trí
+            width / 2, height / 2, // Điểm gốc (origin) để xoay, đặt ở giữa đạn
+            width, height, // Kích thước
+            1, 1, // Tỷ lệ scale
+            rotation, // Góc xoay
+            0, 0, // Vị trí nguồn trên texture
+            texture.getWidth(), texture.getHeight(), // Kích thước nguồn
+            false, false // Không lật texture
+        );
     }
 
     public void update(float deltaTime) {
@@ -28,6 +41,13 @@ public class Bullet {
 
     public boolean isOffScreen(float screenHeight) {
         return y > screenHeight;
+    }
+
+    public boolean isColliding(float otherX, float otherY, float otherWidth, float otherHeight) {
+        return x < otherX + otherWidth &&
+            x + width > otherX &&
+            y < otherY + otherHeight &&
+            y + height > otherY;
     }
 
     public void dispose() {
@@ -50,11 +70,10 @@ public class Bullet {
         return height;
     }
 
-    // Phương thức tĩnh để lấy chiều rộng của đạn trước khi tạo
     public static float getBulletWidth(float scaleFactor) {
         Texture tempTexture = new Texture("bullet.png");
         float width = tempTexture.getWidth() * scaleFactor;
-        tempTexture.dispose(); // Giải phóng texture tạm thời
+        tempTexture.dispose();
         return width;
     }
 }
